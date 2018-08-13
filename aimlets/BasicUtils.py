@@ -342,7 +342,7 @@ def get_na_cells(df):
 
 #---------------------------------------------------- .o0o. ----------------------------------------------------#
 
-def drop_na_rows(df, how='any', thresh=None, subset=None, inplace=True):
+def drop_na_rows(df, reset_index, how='any', thresh=None, subset=None, inplace=True):
     """
     Drops all rows with NA values in a Pandas Dataframe.
     
@@ -367,12 +367,19 @@ def drop_na_rows(df, how='any', thresh=None, subset=None, inplace=True):
         inplace =====> bool, default True
                        If True, do operation inplace and return None.
 
+        reset_index => bool.
+                       If True, the index is reset. False retains old index values after dropping 'na' rows
         Returns:	
-        By default returns None
+        By default returns None.
         If inplace=False, returns DataFrame with NA entries dropped from it
      """
 
-    return df.dropna(how=how, thresh=thresh, subset=subset, inplace=inplace)
+    ret = df.dropna(how=how, thresh=thresh, subset=subset, inplace=inplace)
+
+    if(reset_index is True):
+        df.reset_index(drop=True, inplace=True)
+
+    return ret
 
 #---------------------------------------------------- .o0o. ----------------------------------------------------#
 
