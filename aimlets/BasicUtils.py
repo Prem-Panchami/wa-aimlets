@@ -7,10 +7,29 @@
 import numpy as np
 import pandas as pd
 import collections
+from IPython.display import display, HTML
 
 def set_defaults():
     pd.set_option('display.width', 110) # Widen the display area so that most tables fit without having to 'fold'
 
+#---------------------------------------------------- .o0o. ----------------------------------------------------#
+def highlight_max_of_two_columns(s):
+    color = '#FFFF99'
+    attr = 'background-color: {}'.format(color)
+
+    if(s[0] > s[1]):
+        return [attr, '']
+    elif(s[0] < s[1]):
+        return ['', attr]
+    else:
+        return ['', '']
+#---------------------------------------------------- .o0o. ----------------------------------------------------#
+def highlight_true(s):
+    color = '#d65f5f'
+    attr = 'background-color: {}'.format(color)
+    
+    is_true = s == True
+    return [attr if v else '' for v in is_true]
 #---------------------------------------------------- .o0o. ----------------------------------------------------#
     
 def get_adv_desc_dfs(df, incl_skew=False, incl_kurtosis=False, roundto=2, printout=True, numeric_only=False):
@@ -43,11 +62,12 @@ def get_adv_desc_dfs(df, incl_skew=False, incl_kurtosis=False, roundto=2, printo
         The second data frame will contain the following columns:
           - describe() output ===> count unique top freq
     """
+    basic_cols = ['count', 'mean', 'std', 'min', '25%', '50%', '75%', 'max']
+    adv_cols = ['mean-50%', '25%-min', 'max-75%', 'lwhisk', 'rwhisk', 'outliers', 'variance']
+
     desc_num_df = df.describe(include='number').transpose()
     num_column_names = desc_num_df.index.values
-    
-#     desc_num_df['_1_'] = ' | '
-    
+        
     # mean-50%
     desc_num_df['mean-50%'] = desc_num_df['mean'] - desc_num_df['50%']
 
@@ -57,8 +77,6 @@ def get_adv_desc_dfs(df, incl_skew=False, incl_kurtosis=False, roundto=2, printo
     # max-75%
     desc_num_df['max-75%'] = desc_num_df['max'] - desc_num_df['75%']
    
-    # desc_num_df['_2_'] = ' | '
-
     # lwhisk = 25% - (1.5*IQR) where IQR = 75% - 25%
     desc_num_df['lwhisk'] = desc_num_df['25%'] - (1.5 * (desc_num_df['75%'] - desc_num_df['25%']))
     
@@ -66,14 +84,14 @@ def get_adv_desc_dfs(df, incl_skew=False, incl_kurtosis=False, roundto=2, printo
     desc_num_df['rwhisk'] = desc_num_df['75%'] + (1.5 * (desc_num_df['75%'] - desc_num_df['25%']))
     
     desc_num_df['outliers'] = False
-#     desc_num_df['_3_'] = ' | '
     desc_num_df['variance'] = 0.0
     
     if(incl_skew is True):
-#         desc_num_df['_4_'] = ' | '
+        adv_cols.append('skew')
         desc_num_df['skew'] = 0.0
     
     if(incl_kurtosis is True):
+        adv_cols.append('kurtosis')
         desc_num_df['kurtosis'] = 0.0
     
     for num_col_name in num_column_names:
@@ -90,24 +108,43 @@ def get_adv_desc_dfs(df, incl_skew=False, incl_kurtosis=False, roundto=2, printo
         if(incl_kurtosis is True):
             desc_num_df.at[num_col_name, 'kurtosis'] = df[num_col_name].kurtosis()
 
-    if(printout is True):
-        print("------------------ DATA TYPES AND SHAPE -------------------\n".center(100, ' '))
-        print(df.dtypes)
-        print()
-        print(df.shape)
-        print()
-        print("--------------------- NUMERIC COLUMNS ---------------------\n".center(100, ' '))
-        print(desc_num_df.round(roundto))
-        print()
-
     if(numeric_only is False and 'object' in df.get_dtype_counts().index):
         desc_non_num_df = df.describe(exclude='number').transpose()
-        print("------------------- NON-NUMERIC COLUMNS -------------------\n".center(100, ' '))
-        print(desc_non_num_df)
-        print()
     else:
         desc_non_num_df = None
     
+    if(printout is True):
+        display(HTML("<h4>SHAPE: {} ROWS x {} COLUMNS</h4>".format(df.shape[0], df.shape[1])))
+
+        # ----------------------------------------------------------------------------------
+
+        basic = desc_num_df.loc[:, basic_cols]
+        basic.index = ['{} ({})'.format(x, df[x].dtype) for x in basic.index]
+        display(HTML(basic.style \
+                        .format({y : "{:.2f}" for y in basic_cols}) \
+                        .apply(highlight_max_of_two_columns, subset=['mean' , '50%'], axis=1) \
+                        .set_caption("NUMERIC COLUMNS : BASIC DESCRIPTION")\
+                        .render()))
+
+        # ----------------------------------------------------------------------------------
+
+        adv = desc_num_df.loc[:, adv_cols]
+        adv.index = ['{} ({})'.format(x, df[x].dtype) for x in adv.index]
+        display(HTML(adv.style \
+                        .format({y : "{:.2f}" for y in adv_cols}) \
+                        .bar(subset=['mean-50%'], align='mid', color=['#d65f5f', '#5fba7d'], axis=1) \
+                        .apply(highlight_max_of_two_columns, subset=['25%-min' , 'max-75%'], axis=1) \
+                        .apply(highlight_true, subset=['outliers'], axis=0) \
+                        .set_caption("NUMERIC COLUMNS : ADVANCED DESCRIPTION")\
+                        .render()))
+
+        # ----------------------------------------------------------------------------------
+
+        if(desc_non_num_df is not None):
+            display(HTML(desc_non_num_df.style \
+                                        .set_caption("NON-NUMERIC COLUMNS : BASIC DESCRIPTION") \
+                                        .render()))
+
     return desc_num_df, desc_non_num_df
 
 #---------------------------------------------------- .o0o. ----------------------------------------------------#
