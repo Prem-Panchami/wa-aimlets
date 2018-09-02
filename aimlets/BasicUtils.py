@@ -743,8 +743,12 @@ def mark_outliers(df, colList, whiskers_df=None, _outlier_='_outlier_'):
     for col in colList:
         print("BEFORE marking '{}', outlier count = {}".format(col, str(df.loc[df[_outlier_] == 1, _outlier_].count())))
     
-        df.loc[df[col] < whiskers_df.loc[col, 'lwhisk'], _outlier_] = 1
-        df.loc[df[col] > whiskers_df.loc[col, 'rwhisk'], _outlier_] = 1
+        lwhisk = whiskers_df.loc[col, 'lwhisk']
+        rwhisk = whiskers_df.loc[col, 'rwhisk']
+        
+        # There was a bug with floating point precision where outlier was found even after replacing with whisker!
+        df.loc[(df[col] < lwhisk) & (~np.isclose(df[col], lwhisk)), _outlier_] = 1
+        df.loc[(df[col] > rwhisk) & (~np.isclose(df[col], rwhisk)), _outlier_] = 1
     
         print("AFTER  marking '{}', outlier count = {}".format(col, str(df.loc[df[_outlier_] == 1, _outlier_].count())))
         print()
